@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>AIフォン</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+:root{--bg:#f4f5f8;--card:#fff;--tx:#1b1d24;--sub:#6b7080;--ln:#e2e4ec;--ac:#2f6df6;--gr:#22b45a;--rd:#e5484d;--gold:#d99a00;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#101218;--card:#1a1d26;--tx:#eceef5;--sub:#9096a8;--ln:#2a2e3a;--ac:#5b8cff;--gold:#ffc83d}}
+:root[data-theme="dark"]{--bg:#101218;--card:#1a1d26;--tx:#eceef5;--sub:#9096a8;--ln:#2a2e3a;--ac:#5b8cff;--gold:#ffc83d}
+*{box-sizing:border-box}html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;display:flex;justify-content:center}
+#app{width:100%;max-width:420px;height:100%;display:flex;flex-direction:column;padding:12px 16px}
+h1{font-size:16px;margin:4px 0 8px;display:flex;justify-content:space-between;align-items:center}
+.sm{font-size:12px;color:var(--sub)}
+.screen{display:none;flex:1;min-height:0;flex-direction:column}.screen.on{display:flex}
+#num{font-size:30px;text-align:center;min-height:44px;letter-spacing:2px;margin:8px 0;word-break:break-all}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:8px auto;width:100%;max-width:300px}
+.pad button{aspect-ratio:1;border-radius:50%;border:1px solid var(--ln);background:var(--card);color:var(--tx);font-size:26px;cursor:pointer}
+.pad button small{display:block;font-size:9px;color:var(--sub);letter-spacing:1px}
+.pad button:active{background:var(--ln)}
+.row{display:flex;justify-content:center;gap:16px;align-items:center;margin:8px 0}
+.cb{width:68px;height:68px;border-radius:50%;border:0;color:#fff;font-size:26px;cursor:pointer}
+.g{background:var(--gr)}.r{background:var(--rd)}
+.ghost{background:none;border:1px solid var(--ln);color:var(--tx);border-radius:10px;padding:8px 12px;cursor:pointer;font-size:13px}
+.big{text-align:center;margin:auto 0}
+.big .av{width:96px;height:96px;border-radius:50%;background:var(--ac);color:#fff;font-size:44px;display:flex;align-items:center;justify-content:center;margin:0 auto 12px}
+.big .nm{font-size:22px;font-weight:600}
+.star{color:var(--gold);font-weight:700}
+.celeb .av{background:linear-gradient(135deg,#ffb300,#ff4d8d);box-shadow:0 0 28px #ffb30088}
+#log{flex:1;overflow-y:auto;border:1px solid var(--ln);background:var(--card);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px;min-height:0}
+.m{max-width:85%;padding:8px 11px;border-radius:12px;font-size:14px;line-height:1.5;white-space:pre-wrap}
+.m.ai{background:var(--ln);align-self:flex-start}.m.me{background:var(--ac);color:#fff;align-self:flex-end}
+.inp{display:flex;gap:6px;margin:8px 0}
+.inp input{flex:1;padding:10px;border-radius:10px;border:1px solid var(--ln);background:var(--card);color:var(--tx);font-size:16px}
+.inp button{padding:0 12px;border-radius:10px;border:0;background:var(--ac);color:#fff;cursor:pointer}
+.hist{margin-top:6px;max-height:84px;overflow:auto;font-size:12px;color:var(--sub)}
+details{margin-top:6px;font-size:13px}
+</style>
+</head>
+<body>
+<div id="app">
+ <h1><span>🏮 居酒屋の電話</span><span class="sm" id="status"></span></h1>
+
+ <section class="screen on" id="s-dial">
+  <div id="num"></div>
+  <div class="pad" id="pad"></div>
+  <div class="row">
+   <button class="ghost" id="del">⌫ 消す</button>
+   <button class="cb g" id="call" title="発信">📞</button>
+   <button class="ghost" id="inc">📲 着信テスト</button>
+  </div>
+  <details><summary>設定</summary>
+   <label><input type="checkbox" id="auto" checked> ときどき自動で着信する(30〜90秒)</label><br>
+   <label><input type="checkbox" id="tts" checked> AIの声を読み上げる</label><br>
+   <label><input type="checkbox" id="hf" checked> マイクで会話する(ハンズフリー)</label><br>
+   <label>有名人の確率: <select id="prob"><option value="0.01" selected>1%(通常)</option><option value="1">100%(テスト用)</option></select></label>
+  </details>
+  <div class="hist" id="hist"></div>
+ </section>
+
+ <section class="screen" id="s-ring">
+  <div class="big" id="ringbox"><div class="av">📞</div><div class="nm" id="rname">着信</div><div class="sm" id="rsub"></div></div>
+  <div class="row"><button class="cb r" id="decline">✖</button><button class="cb g" id="answer">📞</button></div>
+ </section>
+
+ <section class="screen" id="s-call">
+  <div class="row" style="justify-content:space-between;margin:0 0 6px"><div><div id="cname" style="font-weight:600"></div><div class="sm" id="ctime">00:00</div></div><button class="cb r" style="width:52px;height:52px;font-size:20px" id="hang">✖</button></div>
+  <div id="log"></div>
+  <div class="inp"><input id="txt" placeholder="話すことを入力…" autocomplete="off"><button id="mic" title="音声入力">🎤</button><button id="send">送信</button></div>
+ </section>
+</div>
+
+<script>
+(function(){
+const $=s=>document.querySelector(s);
+const KEYS=[["1",""],["2","ABC"],["3","DEF"],["4","GHI"],["5","JKL"],["6","MNO"],["7","PQRS"],["8","TUV"],["9","WXYZ"],["*",""],["0","+"],["#",""]];
+const CELEBS=[
+ {n:"星野ルナ",d:"国民的スーパーアイドル(架空)。明るく少しおちゃめ。"},
+ {n:"黒木レオン",d:"ハリウッドで活躍する世界的俳優(架空)。渋くて紳士的、ユーモアあり。"},
+ {n:"ドクター・アルバート・ノヴァ",d:"ノーベル賞受賞の天才宇宙物理学者(架空)。博識で話が壮大。"},
+ {n:"シェフ・マルコ・ベルッチ",d:"三つ星の世界的シェフ(架空)。情熱的で料理の話になると止まらない。"},
+ {n:"DJ KAIZER",d:"世界ツアーを回る伝説のDJ(架空)。ノリが軽くてテンション高め。"},
+ {n:"天城カグヤ",d:"伝説の将棋・囲碁のグランドマスター(架空)。静かで鋭く、たまに名言を言う。"}];
+const NORMAL=["親切な近所のおばさん","少し眠そうな大学生","元気いっぱいの宅配業者","ちょっとマイペースな友人","丁寧な市役所の職員","世間話好きのタクシー運転手","間違い電話をかけてしまった会社員"];
+const st={num:"",cur:null,log:[],busy:false,timer:null,t0:0,ring:null,incT:null,hist:[]};
+let sample=null,actx=null,ringI=null;
+
+// keypad
+KEYS.forEach(([k,s])=>{const b=document.createElement("button");b.innerHTML=k+(s?"<small>"+s+"</small>":"");b.onclick=()=>{st.num+=k;beep(k);draw()};$("#pad").appendChild(b)});
+function draw(){$("#num").textContent=st.num}
+$("#del").onclick=()=>{st.num=st.num.slice(0,-1);draw()};
+function show(id){document.querySelectorAll(".screen").forEach(e=>e.classList.remove("on"));$(id).classList.add("on")}
+function ac(){return actx||(actx=new (window.AudioContext||window.webkitAudioContext)())}
+function beep(k){try{const c=ac(),o=c.createOscillator(),g=c.createGain();o.frequency.value=500+KEYS.findIndex(x=>x[0]===k)*60;g.gain.value=.06;o.connect(g);g.connect(c.destination);o.start();o.stop(c.currentTime+.08)}catch(e){}}
+function ringStart(){ringStop();const go=()=>{try{const c=ac();[0,.25].forEach(d=>{const o=c.createOscillator(),g=c.createGain();o.type="sine";o.frequency.value=d?660:880;g.gain.value=.08;o.connect(g);g.connect(c.destination);o.start(c.currentTime+d);o.stop(c.currentTime+d+.2)})}catch(e){}};go();ringI=setInterval(go,1500)}
+function ringStop(){clearInterval(ringI);ringI=null}
+let nz=null;
+function noiseOn(){try{const c=ac(),len=c.sampleRate*2,b=c.createBuffer(1,len,c.sampleRate),d=b.getChannelData(0);for(let i=0;i<len;i++)d[i]=Math.random()*2-1;const s=c.createBufferSource();s.buffer=b;s.loop=true;const f=c.createBiquadFilter();f.type="lowpass";f.frequency.value=5000;const g=c.createGain();g.gain.value=.12;const l=c.createOscillator(),lg=c.createGain();l.frequency.value=.3;lg.gain.value=.05;l.connect(lg);lg.connect(g.gain);s.connect(f);f.connect(g);g.connect(c.destination);s.start();l.start();nz={s,l}}catch(e){}}
+function noiseOff(){if(nz){try{nz.s.stop();nz.l.stop()}catch(e){}nz=null}}
+
+// persona
+function pickPersona(){
+ const p=parseFloat($("#prob").value);
+ if(Math.random()<p){const c=CELEBS[Math.floor(Math.random()*CELEBS.length)];return{name:c.n,desc:c.d,celeb:true}}
+ const r=NORMAL[Math.floor(Math.random()*NORMAL.length)];return{name:r,desc:r,celeb:false}
+}
+const INC=[
+[50,"居酒屋に予約の電話をかけてきたお客さん(会社の飲み会、友人同士、誕生日会、デートなど毎回ランダムに設定)。日時・人数・名前・席の希望(個室・禁煙・カウンター)・アレルギーなどを、聞かれたら答える。予約が決まったら礼を言って終える"],
+[12,"小学生のいたずら電話。友達と笑いをこらえながら、「おでんありますか？」「店長さんいますか？」など害のない子どもっぽいいたずらを言う。叱られたり数回やり取りしたら「あはは、にげろー」と言って切る"],
+[10,"",true],
+[9,"酒屋や食材業者の担当者。明日の納品の時間や数量を確認する仕事の電話"],
+[9,"常連のお客さん。今日の席が空いているか、おすすめは何かを気さくに聞く"],
+[10,"間違い電話をかけてしまった人、または出前やテイクアウトができるかを聞いてくる人"]];
+function pickIncoming(){
+ if(Math.random()<parseFloat($("#prob").value)){const c=CELEBS[Math.floor(Math.random()*CELEBS.length)];return{name:c.n,desc:c.d+"お忍びで、居酒屋に貸切や予約の電話をかけてきた。",celeb:true}}
+ let r=Math.random()*100;for(const [w,d,s] of INC){if((r-=w)<0)return{name:"",desc:d,celeb:false,silent:!!s}}
+ return{name:"",desc:INC[0][1],celeb:false}
+}
+function setCurrent(p,dir){st.cur={...p,dir};st.log=[];st.sil=0;$("#log").innerHTML=""}
+
+// outgoing
+$("#call").onclick=()=>{
+ if(!st.num){st.num="090"+String(Math.floor(Math.random()*1e8)).padStart(8,"0");draw()}
+ const curse=st.num.replace(/\D/g,"")==="00000000000";
+ const p=curse?{name:"???",desc:"",celeb:false,curse:true}:pickPersona();setCurrent(p,"out");
+ $("#cname").textContent=st.num+" に発信中…";show("#s-call");$("#status").textContent="呼び出し中";
+ let n=0;const ri=setInterval(()=>{ringTone(true);if(++n>=2){clearInterval(ri);connect()}},1400);ringTone(true);
+};
+function ringTone(){try{const c=ac(),o=c.createOscillator(),g=c.createGain();o.frequency.value=420;g.gain.value=.05;o.connect(g);g.connect(c.destination);o.start();o.stop(c.currentTime+.9)}catch(e){}}
+
+// incoming
+function incoming(){
+ if(st.cur||$("#s-ring").classList.contains("on"))return;
+ const p=pickIncoming();st.ring=p;
+ const no="0"+(Math.random()<.5?"90":"80")+String(Math.floor(Math.random()*1e8)).padStart(8,"0");st.ring.no=no;
+ $("#ringbox").className="big"+(p.celeb?" celeb":"");
+ $("#rname").innerHTML=p.celeb?'<span class="star">★ '+esc(p.name)+' ★</span>':esc(no);
+ $("#rsub").textContent=p.celeb?"架空の有名人から着信！":"着信中…";
+ show("#s-ring");ringStart();
+}
+$("#inc").onclick=incoming;
+$("#decline").onclick=()=>{ringStop();addHist("不在着信 "+(st.ring.celeb?"★"+st.ring.name:st.ring.no));st.ring=null;show("#s-dial");sched()};
+$("#answer").onclick=()=>{ringStop();setCurrent(st.ring,"in");$("#cname").textContent=st.ring.celeb?"★ "+st.ring.name:st.ring.no;st.ring=null;show("#s-call");connect(true)};
+function sched(){clearTimeout(st.incT);if($("#auto").checked)st.incT=setTimeout(incoming,30000+Math.random()*60000)}
+$("#auto").onchange=sched;
+
+// call core
+async function connect(){
+ $("#status").textContent="通話中";st.t0=Date.now();
+ if(st.cur.curse){noiseOn();$("#cname").textContent="000-0000-0000";sys("ザーーーーーー……")}
+ clearInterval(st.timer);st.timer=setInterval(()=>{const s=Math.floor((Date.now()-st.t0)/1000);$("#ctime").textContent=String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0")},500);
+ if(st.cur.celeb){$("#cname").innerHTML='<span class="star">★ '+esc(st.cur.name)+'</span>';sys("✨ 1%の奇跡！架空の有名人「"+st.cur.name+"」につながりました ✨")}
+ else if(st.cur.dir==="out")$("#cname").textContent=st.num;
+ if(st.cur.dir==="in"){
+  sys("店員として電話に出ましょう。「お電話ありがとうございます、居酒屋です」");
+  if(st.cur.silent){const c0=st.cur;setTimeout(()=>{if(st.cur===c0&&!c0.ending){c0.ending=true;stopRec();sys("プツッ…ツー、ツー…");setTimeout(()=>{if(st.cur===c0)hang()},1500)}},22000)}
+  listen();
+ }else await ai(true);
+}
+function sys(t){const d=document.createElement("div");d.className="sm";d.style.textAlign="center";d.textContent=t;$("#log").appendChild(d)}
+function bub(t,w){const d=document.createElement("div");d.className="m "+w;d.textContent=t;$("#log").appendChild(d);$("#log").scrollTop=1e9;return d}
+async function ai(first){
+ if(st.busy)return;st.busy=true;
+ const c=st.cur,tr=st.log.map(m=>(m.r==="me"?"ユーザー: ":"あなた: ")+m.t).join("\n");
+ const who=c.curse?"あなたは古い電話の砂嵐のノイズの向こうから話しかけてくる、アニメの少女。幼くて儚い声。言葉は途切れ途切れで、…や『…ざ…』のようなノイズを混ぜ、ゆっくり不気味だが、どこか悲しげで寂しがっている。残酷・グロテスクな描写はしない。":c.celeb?"あなたは架空の世界的有名人「"+c.name+"」("+c.desc+")。相手は偶然つながった一般人。有名人らしい口調で、現実の実在人物には一切触れない。":"あなたは「"+c.desc+"」。自然な日本語の電話口調で話す。";
+ const sit=c.dir==="out"?"知らない番号からユーザーが電話をかけてきて、あなたが出たところ。あなたはユーザーを知らないので、最初の一言は「はい？どちら様ですか？」「誰ですか？」のように、相手が誰なのかを尋ねる(有名人や少女の場合も、その人らしい口調で誰なのかを尋ねる)。相手が名乗って話が進むにつれて、少しずつ打ち解ける。":"あなたは居酒屋に電話をかけ、店員(ユーザー)が出たところ。店員の応対(「お電話ありがとうございます、居酒屋です」など)を受けて、あなたの役に合った用件を切り出す。";
+ const prompt=who+"\n状況: "+sit+"\n決まり: 電話の会話として1〜2文(80字以内)で返す。会話が自然に終わるとき(用件が済んだ、いたずらが終わった、相手が怒って切るなど)は、発話の最後に【切】を付ける。ト書き・括弧・絵文字は使わず、次の発話だけを出力。\n\n会話ここまで:\n"+(tr||"(まだ発話なし)")+"\n\n"+(first?"あなたの最初の一言:":"あなたの次の発話:");
+ if(c.silent){st.sil=(st.sil||0)+1;bub("(……無言……)","ai");if(st.sil>=3){c.ending=true;stopRec();sys("プツッ…ツー、ツー…");setTimeout(()=>{if(st.cur===c)hang()},1800)}st.busy=false;listen();return}
+ const d=bub("…","ai");
+ try{
+  if(!sample)sample=await claude.use("sample");
+  if(!sample)throw {code:"none"};
+  const r=await sample(prompt,{cache:false,modelTier:"quick"});
+  let t=(r.text||"").trim()||"もしもし？";const end=/【切】/.test(t);t=t.replace(/【切】/g,"").trim()||"…";
+  d.textContent=t;st.log.push({r:"ai",t});
+  if(end){c.ending=true;stopRec()}
+  speak(t);
+  if(end)setTimeout(()=>{if(st.cur===c){sys("ガチャッ…ツー、ツー…");hang()}},2500+t.length*180);
+ }catch(e){d.textContent=e&&e.code==="not_granted"?"(AIの利用が許可されていません。許可すると会話できます)":"(つながりませんでした。少し待ってからもう一度どうぞ)"}
+ st.busy=false;if(!speaking)listen();
+}
+function send(){const v=$("#txt").value.trim();if(!v||!st.cur||st.busy)return;$("#txt").value="";bub(v,"me");st.log.push({r:"me",t:v});ai(false)}
+$("#send").onclick=send;$("#txt").onkeydown=e=>{if(e.key==="Enter"&&!e.isComposing)send()};
+function hang(){
+ if(!st.cur){show("#s-dial");return}
+ const s=Math.floor((Date.now()-st.t0)/1000);
+ addHist((st.cur.dir==="out"?"発信 ":"着信 ")+(st.cur.celeb?"★"+st.cur.name:(st.cur.dir==="out"?st.num:"通話"))+" ("+s+"秒)");
+ clearInterval(st.timer);noiseOff();stopRec();speaking=false;speechSynthesis&&speechSynthesis.cancel();st.cur=null;st.num="";draw();$("#status").textContent="";show("#s-dial");sched();
+}
+$("#hang").onclick=hang;
+function addHist(t){st.hist.unshift(t);$("#hist").innerHTML=st.hist.slice(0,20).map(esc).join("<br>")}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+
+// voice
+let speaking=false,rec=null;
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+function speak(t){
+ let ok=false;
+ try{if($("#tts").checked&&window.speechSynthesis){const u=new SpeechSynthesisUtterance(t);u.lang="ja-JP";u.pitch=st.cur&&st.cur.curse?1.8:st.cur&&st.cur.celeb?1.2:1;u.rate=st.cur&&st.cur.curse?.8:1;u.onend=u.onerror=()=>{speaking=false;listen()};stopRec();speaking=true;speechSynthesis.cancel();speechSynthesis.speak(u);ok=true}}catch(e){}
+ if(!ok)listen();
+}
+function stopRec(){if(rec){const r=rec;rec=null;try{r.onend=null;r.abort()}catch(e){}}$("#mic").textContent="🎤"}
+function listen(){
+ if(!SR||!st.cur||st.cur.ending||!$("#hf").checked||st.busy||speaking||rec)return;
+ try{
+  const r=new SR();rec=r;r.lang="ja-JP";r.interimResults=false;r.continuous=false;
+  let got=false;
+  r.onresult=e=>{got=true;const v=e.results[0][0].transcript;rec=null;$("#mic").textContent="🎤";$("#txt").value=v;send()};
+  r.onerror=e=>{if(e.error==="not-allowed"||e.error==="service-not-allowed"){$("#hf").checked=false;sys("マイクが許可されていません。許可するとマイクで会話できます")}};
+  r.onend=()=>{if(rec===r){rec=null;$("#mic").textContent="🎤";if(!got&&$("#hf").checked)setTimeout(listen,300)}};
+  r.start();$("#mic").textContent="🔴";
+ }catch(e){rec=null}
+}
+if(!SR){$("#mic").style.display="none";$("#hf").parentElement.style.display="none"}
+else $("#mic").onclick=()=>{const h=$("#hf");h.checked=!h.checked;if(h.checked)listen();else stopRec()};
+sched();
+})();
+</script>
+</body>
+</html>
